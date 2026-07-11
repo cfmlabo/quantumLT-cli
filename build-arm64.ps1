@@ -1,0 +1,1 @@
+wsl -d Ubuntu bash --login -c 'cargo build --release --target aarch64-unknown-linux-gnu'
