@@ -13,6 +13,7 @@ const IFACE: u8 = 0x05;
 const EP: u8 = 0x01;
 const ALT_SETTING: u8 = 0x01;
 const TIMEOUT: Duration = Duration::from_millis(20);
+const ID: u16 = 0x0101;
 
 pub fn search(serial: String) -> Result<Device<GlobalContext>, Error> {
     for dev in rusb::devices()?.iter() {
@@ -43,6 +44,13 @@ fn send_packet<T: UsbContext>(handle: &mut DeviceHandle<T>, pkt: &mut Packet) ->
 
 fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32) -> Result<(), Error> {
     let mut mixers: Vec<Mixer> = vec![];
+    
+    {   // Pari enable mixer
+        *seq += 1;
+        let payload = Pari::new(0, 0, 4).to_bytes();
+        let mut pkt = Packet::new(ID, *seq, Some(&CMD::APPL_SETP), Some(0), Some(&SUBCMD::PARI), Some(&payload));
+        send_packet(handle, &mut pkt)?;
+    }
 
     for bus in 0 .. 4u8 {
         for pos in 0..1u8 {
@@ -64,7 +72,7 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
                 if mixers.len() == 60 {
                     let payload = Mprm::new(mixers.clone()).to_bytes();
                     *seq += 1;
-                    let mut pkt = Packet::new(0x0101, *seq, CMD::APPL_SETP, 0, SUBCMD::MPRM, &payload);
+                    let mut pkt = Packet::new(ID, *seq, Some(&CMD::APPL_SETP), Some(0), Some(&SUBCMD::MPRM), Some(&payload));
                     send_packet(handle, &mut pkt)?;
                     mixers.clear();
                 }
@@ -74,10 +82,24 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
     if mixers.len() > 0 {
         let payload = Mprm::new(mixers.clone()).to_bytes();
         *seq += 1;
-        let mut pkt = Packet::new(0x0101, *seq, CMD::APPL_SETP, 0, SUBCMD::MPRM, &payload);
+        let mut pkt = Packet::new(ID, *seq, Some(&CMD::SETP), Some(0), Some(&SUBCMD::MPRM), Some(&payload));
         send_packet(handle, &mut pkt)?;
         mixers.clear();
     }
+
+    {   // Pari disable startup
+        *seq += 1;
+        let payload = Pari::new(0, 1, 0).to_bytes();
+        let mut pkt = Packet::new(ID, *seq, Some(&CMD::APPL_SETP), Some(0), Some(&SUBCMD::PARI), Some(&payload));
+        send_packet(handle, &mut pkt)?;
+    }
+    for ch in 0..15u32 {
+        *seq += 1;
+        let payload = Pari::new(ch, 0, 0).to_bytes();
+        let mut pkt = Packet::new(ID, *seq, Some(&CMD::APPL_SETP), Some(0), Some(&SUBCMD::PARI), Some(&payload));
+        send_packet(handle, &mut pkt)?;
+    }
+
         
     Ok(())
 }

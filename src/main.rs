@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use rusb::Error;
 mod quantum_lt;
 
 #[derive(Parser, Debug)]
@@ -6,33 +7,27 @@ mod quantum_lt;
 struct Args {
     #[clap(subcommand)]
     subcommand: SubCommands,
-    #[arg(short, long)]
-    serial: String,
 }
 
 #[derive(Subcommand, Debug)]
 enum SubCommands {
-    Init,
+    #[clap(arg_required_else_help = true)]
+    Init {
+        #[arg(short, long)]
+        serial: String,
+    },
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args = Args::parse();
     
-    match quantum_lt::search(args.serial.clone()) {
-        Ok(dev) => match args.subcommand {
-            SubCommands::Init => {
-                match quantum_lt::init(dev) {
-                    Ok(()) => {
-                        println!("Success initialization.")
-                    },
-                    Err(err) => {
-                        eprint!("Failed to inialize. {}", err)
-                    },
-                }
-            }
-        },
-        Err(error) => {
-            eprintln!("{}", error);
+    match args.subcommand {
+        SubCommands::Init { serial } => {
+            let dev = quantum_lt::search(serial)?;
+            quantum_lt::init(dev)?;
+            println!("Success initialization.")
         },
     }
+    
+    Ok(())
 }

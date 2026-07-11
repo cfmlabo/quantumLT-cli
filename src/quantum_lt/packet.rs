@@ -23,7 +23,7 @@ impl CMD {
     pub const APPL_GETP: CMD = CMD(ApplGetP);
     pub const APPL_SETP: CMD = CMD(ApplSetP);
     pub const APPL_RPLY: CMD = CMD(ApplRply);
-    pub const SET_P: CMD = CMD(SetP);
+    pub const SETP: CMD = CMD(SetP);
     pub const RPLY: CMD = CMD(Rply);
     
     #[inline]
@@ -94,13 +94,13 @@ impl SUBCMD {
 pub struct Packet<'a> {
     id: u16,
     seq: u32,
-    cmd: CMD,    
-    bank: u32,
-    subcmd: SUBCMD,
-    payload: &'a [u8],
+    cmd: Option<&'a CMD>,
+    bank: Option<u32>,
+    subcmd: Option<&'a SUBCMD>,
+    payload: Option<&'a [u8]>,
 }
 impl<'a> Packet<'a> {
-    pub fn new(id: u16, seq: u32, cmd: CMD, bank: u32, subcmd: SUBCMD, payload: &'a [u8]) -> Self {
+    pub fn new(id: u16, seq: u32, cmd: Option<&'a CMD>, bank: Option<u32>, subcmd: Option<&'a SUBCMD>, payload: Option<&'a [u8]>) -> Self {
         Self {
             id: id,
             seq: seq,
@@ -112,16 +112,30 @@ impl<'a> Packet<'a> {
     }
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        let len = self.payload.len() as u16;
-
-        buf.extend_from_slice(&(len + 28).to_le_bytes());
+        let mut len = 0u16;
+        
+        buf.extend_from_slice(&[0u8; 4]);   // place holder
         buf.extend_from_slice(&self.id.to_le_bytes());
         buf.extend_from_slice(&self.seq.to_le_bytes());
-        buf.extend_from_slice(&self.cmd.as_bytes());
-        buf.extend_from_slice(&self.bank.to_le_bytes());
-        buf.extend_from_slice(&self.subcmd.as_bytes());
-        buf.extend_from_slice(&(len as u32 + 8).to_le_bytes());
-        buf.extend_from_slice(&self.payload);
+        if let Some(cmd) = self.cmd {
+            len += 8;
+            buf.extend_from_slice(&cmd.as_bytes());
+        }
+        if let Some(bank) = self.bank {
+            len += 4;
+            buf.extend_from_slice(&bank.to_le_bytes());
+        }
+        if let Some(subcmd) = self.subcmd {
+            len += 4;
+            buf.extend_from_slice(&subcmd.as_bytes());
+        }
+        if let Some(payload) = self.payload {
+            let size = (4 + payload.len()) as u16;
+            len += size;
+            buf.extend_from_slice(&(size as u32 + 8).to_le_bytes());
+            buf.extend_from_slice(&payload);
+        }
+        buf[0 .. 3].copy_from_slice(&len.to_le_bytes());
         
         return buf
     }
