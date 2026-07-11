@@ -1,9 +1,6 @@
-use self::CmdInner::*;
-use self::SubCmdInner::*;
-
-pub struct CMD(CmdInner);
+#[derive(Clone, Copy)]
 #[allow(dead_code)]
-enum CmdInner {
+pub enum CMD {
     ApplGetP,
     ApplSetP,
     ApplRply,
@@ -11,34 +8,21 @@ enum CmdInner {
     Rply,
 }
 
-impl AsRef<str> for CMD {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
 #[allow(dead_code)]
 impl CMD {
-    pub const APPL_GETP: CMD = CMD(ApplGetP);
-    pub const APPL_SETP: CMD = CMD(ApplSetP);
-    pub const APPL_RPLY: CMD = CMD(ApplRply);
-    pub const SETP: CMD = CMD(SetP);
-    pub const RPLY: CMD = CMD(Rply);
-    
     #[inline]
-    pub fn as_str(&self) -> &str {
-        match self.0 {
-            ApplGetP => "ApplGetP",
-            ApplSetP => "ApplSetP",
-            ApplRply => "ApplRply",
-            SetP => "SetP",
-            Rply => "Rply",
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CMD::ApplGetP => "ApplGetP",
+            CMD::ApplSetP => "ApplSetP",
+            CMD::ApplRply => "ApplRply",
+            CMD::SetP => "SetP",
+            CMD::Rply => "Rply",
         }
     }
     
     #[inline]
-    pub fn as_bytes(&self) -> [u8; 8] {
+    pub fn as_bytes(self) -> [u8; 8] {
         let mut buf = [0u8; 8];
         
         for (i, b) in self.as_str().bytes().rev().enumerate() {
@@ -49,38 +33,26 @@ impl CMD {
     }
 }
 
-pub struct SUBCMD(SubCmdInner);
-#[allow(dead_code)]
-enum SubCmdInner {
+#[derive(Clone, Copy)]
+pub enum SUBCMD {
     QUSt,
     Pari,
     Mprm,    
 }
 
-impl AsRef<str> for SUBCMD {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
 #[allow(dead_code)]
 impl SUBCMD {
-    pub const QUST: SUBCMD = SUBCMD(QUSt);
-    pub const PARI: SUBCMD = SUBCMD(Pari);
-    pub const MPRM: SUBCMD = SUBCMD(Mprm);
-
     #[inline]
-    pub fn as_str(&self) -> &str {
-        match self.0 {
-            QUSt => "QUst",
-            Pari => "Pari",
-            Mprm => "mprm",
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SUBCMD::QUSt => "QUst",
+            SUBCMD::Pari => "Pari",
+            SUBCMD::Mprm => "mprm",
         }
     }
 
     #[inline]
-    pub fn as_bytes(&self) -> [u8; 4] {
+    pub fn as_bytes(self) -> [u8; 4] {
         let mut buf: [u8; 4] = [0; 4];
         
         for (i, b) in self.as_str().bytes().rev().enumerate() {
@@ -91,16 +63,16 @@ impl SUBCMD {
     }
 }
 
-pub struct Packet<'a> {
+pub struct Packet {
     id: u16,
     seq: u32,
-    cmd: Option<&'a CMD>,
+    cmd: Option< CMD>,
     bank: Option<u32>,
-    subcmd: Option<&'a SUBCMD>,
-    payload: Option<&'a [u8]>,
+    subcmd: Option<SUBCMD>,
+    payload: Option<Vec<u8>>,
 }
-impl<'a> Packet<'a> {
-    pub fn new(id: u16, seq: u32, cmd: Option<&'a CMD>, bank: Option<u32>, subcmd: Option<&'a SUBCMD>, payload: Option<&'a [u8]>) -> Self {
+impl Packet {
+    fn new(id: u16, seq: u32, cmd: Option<CMD>, bank: Option<u32>, subcmd: Option<SUBCMD>, payload: Option<Vec<u8>>) -> Self {
         Self {
             id: id,
             seq: seq,
@@ -114,7 +86,7 @@ impl<'a> Packet<'a> {
         let mut buf = Vec::new();
         let mut len = 0u16;
         
-        buf.extend_from_slice(&[0u8; 4]);   // place holder
+        buf.extend_from_slice(&[0u8; 2]);   // place holder
         buf.extend_from_slice(&self.id.to_le_bytes());
         buf.extend_from_slice(&self.seq.to_le_bytes());
         if let Some(cmd) = self.cmd {
@@ -129,14 +101,122 @@ impl<'a> Packet<'a> {
             len += 4;
             buf.extend_from_slice(&subcmd.as_bytes());
         }
-        if let Some(payload) = self.payload {
+        if let Some(payload) = &self.payload {
             let size = (4 + payload.len()) as u16;
             len += size;
             buf.extend_from_slice(&(size as u32 + 8).to_le_bytes());
             buf.extend_from_slice(&payload);
         }
-        buf[0 .. 3].copy_from_slice(&len.to_le_bytes());
+        buf[0 .. 2].copy_from_slice(&len.to_le_bytes());
         
         return buf
     }
+}
+
+const ID: u16 = 0x0101;
+pub struct PacketBuilder {
+    id: Option<u16>,
+    seq: Option<u32>,
+    cmd: Option<CMD>,
+    bank: Option<u32>,
+    subcmd: Option<SUBCMD>,
+    payload: Option<Vec<u8>>,
+}
+impl PacketBuilder {
+    pub fn new() -> Self {
+        Self {
+            id: None,
+            seq: None,
+            cmd: None,
+            bank: None,
+            subcmd: None,
+            payload: None
+        }
+    }
+    
+    #[allow(dead_code)]
+    pub fn qust(seq: u32) -> Self {
+        Self::new()
+            .id(ID)
+            .seq(seq)
+            .cmd(CMD::ApplGetP)
+            .bank(0)
+            .subcmd(SUBCMD::QUSt)
+            .payload([0u8; 162].to_vec())
+    }
+    
+    pub fn pari(seq: u32, bank: u32, payload: Vec<u8>) -> Self {
+        Self::new()
+            .id(ID)
+            .seq(seq)
+            .cmd(CMD::ApplSetP)
+            .bank(bank)
+            .subcmd(SUBCMD::Pari)
+            .payload(payload)
+    }
+    
+    pub fn mprm(seq: u32, payload: Vec<u8>) -> Self {
+        Self::new()
+            .id(ID)
+            .seq(seq)
+            .cmd(CMD::SetP)
+            .bank(0)
+            .subcmd(SUBCMD::Mprm)
+            .payload(payload)
+    }
+    
+    pub fn id(mut self, value: u16) -> Self {
+        self.id = Some(value);
+        self
+    }
+
+    pub fn seq(mut self, value: u32) -> Self {
+        self.seq = Some(value);        
+        self
+    }
+
+    pub fn cmd(mut self, value: CMD) -> Self {
+        self.cmd = Some(value);        
+        self
+    }
+
+    pub fn bank(mut self, value: u32) -> Self {
+        self.bank = Some(value);        
+        self
+    }
+
+    pub fn subcmd(mut self, value: SUBCMD) -> Self {
+        self.subcmd = Some(value);        
+        self
+    }
+    
+    pub fn payload(mut self, value: Vec<u8>) -> Self {
+        self.payload = Some(value);
+        self
+    }
+    
+    pub fn build(self) -> Result<Packet, String> {
+        Ok(Packet::new(
+            self.id.ok_or("id")?,
+            self.seq.ok_or("seq")?,
+            self.cmd,
+            self.bank,
+            self.subcmd,
+            self.payload,
+        ))
+    }
+}
+
+#[test]
+fn test_packet() {
+    let payload = [5u8].to_vec();
+    let pkt = PacketBuilder::new()
+        .id(0x0101)
+        .seq(2)
+        .cmd(CMD::ApplSetP)
+        .bank(3)
+        .subcmd(SUBCMD::Pari)
+        .payload(payload)
+        .build().unwrap();
+    pkt.to_bytes();
 }
