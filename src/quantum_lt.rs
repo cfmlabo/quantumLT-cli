@@ -1,5 +1,5 @@
 use std::{time::Duration};
-use rusb::{Device, DeviceHandle, Error, GlobalContext, UsbContext};
+use rusb::{Device, DeviceHandle, Error::{self}, GlobalContext, UsbContext};
 
 mod packet;
 pub use packet::*;
@@ -14,20 +14,43 @@ const EP: u8 = 0x01;
 const ALT_SETTING: u8 = 0x01;
 const TIMEOUT: Duration = Duration::from_millis(20);
 
-pub fn search(serial: String) -> Result<Device<GlobalContext>, Error> {
+pub struct DeviceInfo {
+    device: Device<GlobalContext>,
+    serial: String
+}
+impl DeviceInfo {
+    fn new(device: Device<GlobalContext>, serial: String) -> Self {
+        Self {
+            device: device,
+            serial: serial,
+        }
+    }
+    
+    pub fn device(&self) -> &Device<GlobalContext> {
+        &self.device
+    }
+
+    pub fn serial(&self) -> &String {
+        &self.serial
+    }
+}
+
+pub fn search(serial: Option<&str>) -> Result<Vec<DeviceInfo>, Error> {
+    let mut list: Vec<DeviceInfo> = vec![];
+
     for dev in rusb::devices()?.iter() {
         let desc = dev.device_descriptor()?;
         if desc.vendor_id() == VENDOR_ID && desc.product_id() == PRODUCT_ID {
             if let Ok(handle) = dev.open() {
                 if let Ok(s) = handle.read_serial_number_string_ascii(&desc) {
-                    if s == serial {
-                        return Ok(dev)
+                    if serial.as_deref().is_none_or(|tmp| tmp == s) {
+                        list.push(DeviceInfo::new(dev, s));
                     }
                 }
             }
         }
     }
-    return Err(Error::NoDevice)
+    Ok(list)
 }
 
 fn send_packet<T: UsbContext>(handle: &mut DeviceHandle<T>, pkt: &Packet) -> Result<Packet, Error> {
@@ -107,7 +130,7 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
     Ok(())
 }
 
-pub fn init<T: UsbContext>(dev: Device<T>) -> Result<(), Error> {
+pub fn init<T: UsbContext>(dev: &Device<T>) -> Result<(), Error> {
     let mut handle = dev.open()?;
     let mut seq = 0u32;
     handle.claim_interface(IFACE)?;

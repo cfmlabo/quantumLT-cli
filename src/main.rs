@@ -16,6 +16,7 @@ enum SubCommands {
         #[arg(short, long)]
         serial: String,
     },
+    List,
 }
 
 fn main() -> Result<(), Error> {
@@ -23,9 +24,22 @@ fn main() -> Result<(), Error> {
     
     match args.subcommand {
         SubCommands::Init { serial } => {
-            let dev = quantum_lt::search(serial)?;
-            quantum_lt::init(dev)?;
-            println!("Success initialization.")
+            let list = &mut quantum_lt::search(Some(&serial))?;
+            if let Some(info) = list.pop() {
+                quantum_lt::init(info.device())?;
+                println!("Success initialization.")
+            }
+            eprintln!("No such device. {}", serial)
+        },
+        SubCommands::List => {
+            let list = quantum_lt::search(None)?;
+            for info in &list {
+                let dev = info.device();
+                println!("{}:{} {}", dev.bus_number(), dev.address(), info.serial());
+            }
+            if list.len() == 0 {
+                eprintln!("Not found.");
+            }
         },
     }
     
