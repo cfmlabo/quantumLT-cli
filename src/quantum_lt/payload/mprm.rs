@@ -69,11 +69,12 @@ impl Mprm {
         if size < DATA_SIZE as u32 {
             return None;
         }
-        let mut mixers: Vec<Mixer> = vec![];
+        let count = u32::from_le_bytes(data[data.len() - 4 ..].try_into().ok()?);
         
-        for idx in 0 .. MAX_MIXSERS {
-            let offset = idx * 8;
-            mixers.push(Mixer::parse(&data[offset .. offset + 8], 8).unwrap());
+        let mut mixers = Vec::with_capacity(count as usize);
+        for idx in 0 .. count as usize {
+            let offset = 4 + (idx * 8);
+            mixers.push(Mixer::parse(&data[offset .. offset + 8], 8)?);
         }
         
         Some(Self::new(mixers))
@@ -83,8 +84,13 @@ impl Mprm {
 #[test]
 fn test_mprm() {
     let mut mixers: Vec<Mixer> = vec![];
-    mixers.push(Mixer::new(0, 0, 0, -145f32));
+    mixers.push(Mixer::new(2, 1, 0, -145f32));
     let mprm = Mprm::new(mixers);
     let bytes = mprm.to_bytes();
-    Mprm::parse(&bytes, bytes.len() as u32).unwrap();
+    let m = Mprm::parse(&bytes, bytes.len() as u32).unwrap();
+    assert_eq!(m.mixers.len(), 1);
+    assert_eq!(m.mixers[0].channel, 2);
+    assert_eq!(m.mixers[0].bus, 1);
+    assert_eq!(m.mixers[0].position, 0);
+    assert_eq!(m.mixers[0].value, -145f32);
 }

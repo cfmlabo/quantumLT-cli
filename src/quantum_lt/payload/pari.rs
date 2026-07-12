@@ -34,6 +34,9 @@ impl Pari {
 
 #[test]
 fn test_pari() {
-    let bytes = Pari::new(0, 0, 0).to_bytes();
-    Pari::parse(&bytes, bytes.len() as u32).unwrap();
+    let bytes = Pari::new(1, 2, 3).to_bytes();
+    let p = Pari::parse(&bytes, bytes.len() as u32).unwrap();
+    assert_eq!(p.channel, 1);
+    assert_eq!(p.bus, 2);
+    assert_eq!(p.value, 3);
 }

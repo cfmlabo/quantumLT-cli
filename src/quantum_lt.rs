@@ -66,7 +66,6 @@ fn send_packet<T: UsbContext>(handle: &mut DeviceHandle<T>, pkt: &Packet) -> Res
 }
 
 fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32) -> Result<(), Error> {
-    let mut mixers: Vec<Mixer> = vec![];
     {   // Pari enable mixer
         *seq += 1;
         let payload = Pari::new(0, 0, 4).to_bytes();
@@ -75,6 +74,7 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
         send_packet(handle, &pkt)?;
     }
 
+    let mut mixers = Vec::with_capacity(60);
     for bus in 0 .. 4u8 {
         for pos in 0..1u8 {
             for ch in 0 .. 25u8 {

@@ -1,6 +1,6 @@
 use crate::quantum_lt::{Mprm, Pari, QUSt};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum CMD {
     ApplGetP,
@@ -49,7 +49,7 @@ impl CMD {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SUBCMD {
     QUSt,
     Pari,
@@ -96,7 +96,7 @@ const HEADER_SIZE: usize = 8;
 pub struct Packet {
     id: u16,
     seq: u32,
-    cmd: Option< CMD>,
+    cmd: Option<CMD>,
     bank: Option<u32>,
     subcmd: Option<SUBCMD>,
     payload: Option<Vec<u8>>,
@@ -273,9 +273,9 @@ impl PacketBuilder {
 
 #[test]
 fn test_packet() {
-    let payload = [0u8; 12].to_vec();
+    let payload = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let pkt = PacketBuilder::new()
-        .id(0x0101)
+        .id(ID)
         .seq(2)
         .cmd(CMD::ApplSetP)
         .bank(3)
@@ -283,5 +283,11 @@ fn test_packet() {
         .payload(payload)
         .build().unwrap();
     let bytes = pkt.to_bytes();
-    Packet::parse(&bytes, bytes.len()).unwrap();
+    let p = Packet::parse(&bytes, bytes.len()).unwrap();
+    assert_eq!(p.id, ID);
+    assert_eq!(p.seq, 2);
+    assert_eq!(p.cmd,  Some(CMD::ApplSetP));
+    assert_eq!(p.bank, Some(3));
+    assert_eq!(p.subcmd, Some(SUBCMD::Pari));
+    assert_eq!(p.payload, Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
 }
