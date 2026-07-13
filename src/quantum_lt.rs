@@ -1,5 +1,6 @@
 use std::{time::Duration};
 use rusb::{Device, DeviceHandle, Error::{self}, GlobalContext, UsbContext};
+use debug_print::{debug_println};
 
 mod packet;
 pub use packet::*;
@@ -55,11 +56,11 @@ pub fn search(serial: Option<&str>) -> Result<Vec<DeviceInfo>, Error> {
 
 fn send_packet<T: UsbContext>(handle: &mut DeviceHandle<T>, pkt: &Packet) -> Result<Packet, Error> {
     let wbuf = pkt.to_bytes();
-    let mut rbuf: Vec<u8> = vec![0; wbuf.len()];
-    let wsize = handle.write_bulk(EP, wbuf.as_slice(), TIMEOUT)?;
-    println!("write packet: {} bytes", wsize);
-    let rsize = handle.read_bulk(EP, rbuf.as_mut_slice(), TIMEOUT)?;
-    println!("read packet: {} bytes", rsize);
+    let mut rbuf = vec![0u8; wbuf.len()];
+    let _wsize = handle.write_bulk(EP, wbuf.as_slice(), TIMEOUT)?;
+    debug_println!("write packet: {} bytes", _wsize);
+    let rsize = handle.read_bulk(0x80 | EP, rbuf.as_mut_slice(), TIMEOUT)?;
+    debug_println!("read packet: {} bytes", rsize);
     let pkt = Packet::parse(&rbuf, rsize).unwrap();
     
     Ok(pkt)
@@ -75,9 +76,9 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
     }
 
     let mut mixers = Vec::with_capacity(60);
-    for bus in 0 .. 4u8 {
-        for pos in 0..1u8 {
-            for ch in 0 .. 25u8 {
+    for bus in 0 .. 5u8 {
+        for pos in 0..2u8 {
+            for ch in 0 .. 26u8 {
                 let mut value: f32 = -145f32;    // Mute
                 if ch < 16 {
                     // Input 
@@ -130,11 +131,18 @@ fn send_init_packets<T: UsbContext>(handle: &mut DeviceHandle<T>, seq: &mut u32)
     Ok(())
 }
 
-pub fn init<T: UsbContext>(dev: &Device<T>) -> Result<(), Error> {
-    let mut handle = dev.open()?;
-    let mut seq = 0u32;
+fn open<T: UsbContext>(dev: &Device<T>) -> Result<DeviceHandle<T>, Error> {
+    let handle = dev.open()?;
     handle.claim_interface(IFACE)?;
     handle.set_alternate_setting(IFACE, ALT_SETTING)?;
+    // handle.clear_halt(EP)?;
+    
+    Ok(handle)
+}
+
+pub fn init<T: UsbContext>(dev: &Device<T>) -> Result<(), Error> {
+    let mut seq = 0u32;
+    let mut handle = open(dev)?;
 
     send_init_packets(&mut handle, &mut seq)?;
     

@@ -28,14 +28,15 @@ fn main() -> Result<(), Error> {
             if let Some(info) = list.pop() {
                 quantum_lt::init(info.device())?;
                 println!("Success initialization.")
+            } else {
+                eprintln!("No such device. {}", serial)
             }
-            eprintln!("No such device. {}", serial)
         },
         SubCommands::List => {
             let list = quantum_lt::search(None)?;
             for info in &list {
                 let dev = info.device();
-                println!("{}:{} {}", dev.bus_number(), dev.address(), info.serial());
+                println!("{}:{}:{} {}", dev.bus_number(), dev.port_number(), dev.address(), info.serial());
             }
             if list.len() == 0 {
                 eprintln!("Not found.");

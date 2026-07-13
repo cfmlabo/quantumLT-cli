@@ -114,7 +114,7 @@ impl Packet {
     }
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        let mut len = 0u16;
+        let mut len = 8u16;
         
         buf.extend_from_slice(&[0u8; 2]);   // place holder
         buf.extend_from_slice(&self.id.to_le_bytes());
@@ -134,7 +134,7 @@ impl Packet {
         if let Some(payload) = &self.payload {
             let size = (4 + payload.len()) as u16;
             len += size;
-            buf.extend_from_slice(&(size as u32 + 8).to_le_bytes());
+            buf.extend_from_slice(&(size as u32 + 4).to_le_bytes());
             buf.extend_from_slice(&payload);
         }
         buf[0 .. 2].copy_from_slice(&len.to_le_bytes());
