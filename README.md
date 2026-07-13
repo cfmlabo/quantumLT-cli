@@ -19,3 +19,14 @@ Quantum LT 16をコントロールする
 # WSLでaarch64向けビルド
 cargo build --target aarch64-unknown-linux-gnu
 ```
+
+## USB接続時に実行
+
+```sh
+# /opt/quantumLT-cli/quantumLT-cli
+# /opt/quantumLT-cli/systemd/quantumLT-init.service
+# /opt/quantumLT-cli/udev/quantumLT.rules
+
+sudo ln -s /opt/quantumLT-cli/udev/quantumLT.rules /etc/udev/rules.d/99-quantumLT.rules
+sudo ln -s /opt/quantumLT-cli/systemd/quantumLT-init.service /etc/systemd/system/quantumLT-init@.service
+```

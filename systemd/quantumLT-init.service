@@ -1,0 +1,6 @@
+[Unit]
+Description=QuantumLT initialize service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/quantumLT-cli/quantumLT-cli init -s %I
