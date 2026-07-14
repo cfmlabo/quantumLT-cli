@@ -174,7 +174,7 @@ dependencies = [
 [[package]]
 name = "quantum-lt"
 version = "0.2.0"
-source = "git+ssh://git@github.com/cfmlabo/quantum-lt.git?branch=main#90b40deb47c08556b0d0803de1d09e72d97d00a2"
+source = "git+ssh://git@github.com/cfmlabo/quantum-lt.git?branch=main#c8b1372ec3c938fd46a2e6a76adf07b4b70c3770"
 dependencies = [
  "debug_print",
  "rusb",
