@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
-quantum-lt = { git = "ssh://git@github.com/cfmlabo/quantum-lt.git", branch = "main" }
+quantum-lt = { git = "ssh://git@github.com/cfmlabo/quantum-lt.git", tag = "v0.3.0" }
